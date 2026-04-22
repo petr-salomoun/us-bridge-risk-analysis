@@ -40,6 +40,7 @@ Each step can be run independently:
 | `src/07_analysis.py` | Statistical analysis + charts | `bridges_ranked.csv` | `outputs/charts/01–09_*.png` |
 | `src/08_heatmap.py` | State-level CONUS choropleth | `state_summary.csv` | `outputs/charts/09_conus_state_heatmap.png` |
 | `src/09_collapse.py` | Collapse probability + casualty exposure | `bridges_map_data.parquet` | `charts/10–11_*.png`, `collapse_exposure_report.json`, `bridges_top1000_collapse_exposure.csv` |
+| `src/10_export.py` | Package publish-ready snapshot | All outputs | `export/` directory |
 
 ### Run individual steps
 
@@ -53,6 +54,7 @@ python3 src/06_map.py
 python3 src/07_analysis.py
 python3 src/08_heatmap.py
 python3 src/09_collapse.py
+python3 src/10_export.py             # package export/ for publication
 ```
 
 ### Pipeline options
@@ -170,101 +172,64 @@ All 9 tests should pass. Tests cover:
 
 ### What to include
 
-The repository contains code, documentation, and output charts. The large binary outputs (`bridges_ranked.csv` ~300 MB, `bridge_risk_map.html` ~38 MB, parquet files) are too large for standard GitHub and should be handled separately (see below).
+`bridge_risk_map.html` is ~40 MB — well within GitHub's 100 MB per-file limit, so it is committed directly. The only files excluded are the large CSVs (~150 MB) and raw/processed data.
 
-Recommended `.gitignore` additions (already created at `.gitignore`):
+`.gitignore` (already created) excludes:
 ```
 data/raw/
 data/processed/
 outputs/bridges_ranked.csv
 outputs/bridges_top1000_collapse_exposure.csv
-outputs/bridge_risk_map.html
+outputs/*.gz
 ```
 
-Include in the repository:
-- `src/` — all pipeline scripts
-- `README.md`, `DETAILS.md`, `OPERATIONS.md`
+Committed to the repository:
+- `src/` — all 10 pipeline scripts
+- `README.md`, `DETAILS.md`, `OPERATIONS.md`, `.gitignore`
 - `requirements.txt`, `run_pipeline.sh`
-- `outputs/charts/*.png` — all 11 charts (~10 MB total, fine for GitHub)
-- `outputs/state_summary.csv` — small file
-- `outputs/collapse_exposure_report.json` — small file
+- `outputs/charts/*.png` — all 11 charts
+- `outputs/bridge_risk_map.html` — interactive map (~40 MB, direct download link in README)
+- `outputs/state_summary.csv`, `collapse_exposure_report.json`, `model_report.json`
 
 ### Step-by-step GitHub publication
 
 ```bash
+# 0. Run the export script to create a clean publish snapshot
+python3 src/10_export.py
+# Creates export/ with all intended files; large CSVs are compressed (.gz) for reference
+
 # 1. Create a new GitHub repository at https://github.com/new
-#    Suggested name: us-bridge-risk-analysis
-#    Set to Public; do NOT initialize with README (you have one)
+#    Set to Public; do NOT initialize with README
 
-# 2. Initialize git in this directory
-cd /path/to/bridges
+# 2. Initialize git in the export directory
+cd export/
 git init
-git add README.md DETAILS.md OPERATIONS.md requirements.txt run_pipeline.sh
-git add src/
-git add outputs/charts/
-git add outputs/state_summary.csv outputs/collapse_exposure_report.json
-
-# 3. Create .gitignore
-cat > .gitignore << 'EOF'
-data/raw/
-data/processed/
-outputs/bridges_ranked.csv
-outputs/bridges_top1000_collapse_exposure.csv
-outputs/bridge_risk_map.html
-__pycache__/
-*.pyc
-*.pkl
-*.egg-info/
-.env
-EOF
-
-git add .gitignore
+git add .
 git commit -m "Initial release: NBI bridge risk analysis pipeline and results"
 
-# 4. Push to GitHub
-git remote add origin https://github.com/YOUR_USERNAME/us-bridge-risk-analysis.git
+# 3. Push to GitHub
+git remote add origin https://github.com/petr-salomoun/us-bridge-risk-analysis.git
 git branch -M main
 git push -u origin main
 ```
 
-### Hosting the interactive map
-
-The interactive map (`bridge_risk_map.html`, ~38 MB) is too large for GitHub's file size limit. Options:
-
-1. **GitHub Releases:** Upload `bridge_risk_map.html` as a release asset (supports files up to 2 GB):
-   ```bash
-   gh release create v1.0 outputs/bridge_risk_map.html \
-     --title "Bridge Risk Map v1.0" \
-     --notes "Interactive map of Critical and High risk US bridges"
-   ```
-
-2. **GitHub Pages with Git LFS:**
-   ```bash
-   git lfs install
-   git lfs track "outputs/bridge_risk_map.html"
-   git add .gitattributes outputs/bridge_risk_map.html
-   git commit -m "Add interactive map via Git LFS"
-   ```
-
-3. **External hosting:** Upload to Netlify Drop (https://app.netlify.com/drop), Google Drive, or any static file host. Update the link in `README.md` accordingly.
+> **Note:** The first push will upload ~42 MB (map + charts). This may take a minute on a slow connection.
 
 ### Hosting the full dataset
 
-`bridges_ranked.csv` (~300 MB) exceeds GitHub's recommended file size. Options:
-- **Zenodo** (https://zenodo.org) — free DOI-assigned academic data hosting; supports up to 50 GB
+`bridges_ranked.csv` (~150 MB) exceeds GitHub's soft recommended limit. Options:
+- **GitHub Releases** — attach `bridges_ranked.csv.gz` (58 MB) as a release asset:
+  ```bash
+  gh release create v1.0 outputs/bridges_ranked.csv.gz \
+    --title "Full dataset v1.0" \
+    --notes "All 622,566 bridges with risk scores (gzip-compressed CSV)"
+  ```
+- **Zenodo** (https://zenodo.org) — free DOI-assigned academic data hosting
 - **Kaggle Datasets** — public datasets with version control
-- **GitHub Releases** — attach CSV as a release asset
-
-After uploading, add a "Download Data" link to `README.md`:
-```markdown
-**Full Dataset:** [Download bridges_ranked.csv from Zenodo](https://doi.org/10.5281/zenodo.XXXXXXX)
-```
 
 ### After publishing
 
-1. Add the repository URL to the map popup and README header
-2. Update the `README.md` "How to Use This" section with the direct GitHub Pages / Netlify map link
-3. Share via:
+1. Share via:
    - Reddit: r/dataisbeautiful, r/MapPorn, r/civilengineering
    - Hacker News (Show HN)
    - LinkedIn

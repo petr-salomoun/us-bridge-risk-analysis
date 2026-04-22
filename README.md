@@ -1,6 +1,7 @@
 # America's Bridges at Risk: A Data Analysis of 623,000 US Bridges
 
 **Data source:** [Federal Highway Administration — National Bridge Inventory 2024](https://www.fhwa.dot.gov/bridge/nbi.cfm)  
+**Repository:** [github.com/petr-salomoun/us-bridge-risk-analysis](https://github.com/petr-salomoun/us-bridge-risk-analysis)  
 **Bridges analyzed:** 622,566  
 **Method:** Structural-engineering-informed ML + rule-based risk scoring + collapse probability model  
 **Data vintage:** 2024 NBI submission (latest available)
@@ -228,7 +229,7 @@ The NBI makes this risk knowable and public. This analysis makes it ranked, mapp
 
 ## How to Use This
 
-**Interactive Map:** Open `outputs/bridge_risk_map.html` in any browser. Shows Critical and High-risk bridges as arch bridge icons sized by log(traffic), with tooltips including collapse probability and rush-hour occupancy. *(GitHub link to be added on publication.)*
+**Interactive Map:** [Download bridge_risk_map.html](https://github.com/petr-salomoun/us-bridge-risk-analysis/raw/main/outputs/bridge_risk_map.html) — save and open in any browser. Shows Critical and High-risk bridges as arch bridge icons sized by log(traffic), with tooltips showing collapse probability and rush-hour occupancy.
 
 **Full Dataset:** `outputs/bridges_ranked.csv` — all 622,566 bridges sorted by risk score.
 
