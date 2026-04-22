@@ -1,0 +1,7 @@
+{
+  "gbt_cv_auc": 0.9092,
+  "gbt_cv_ap": 0.6436,
+  "n_samples": 622566,
+  "n_poor": 42057,
+  "prevalence": 0.0676
+}

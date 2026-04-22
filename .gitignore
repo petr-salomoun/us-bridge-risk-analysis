@@ -1,0 +1,37 @@
+# Raw and processed data (large files, reproducible by running the pipeline)
+data/raw/
+data/processed/
+
+# Large output files (too big for standard GitHub — host separately)
+outputs/bridges_ranked.csv
+outputs/bridges_top1000_collapse_exposure.csv
+outputs/bridges_critical_top1000.csv
+outputs/bridge_risk_map.html
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs (optional — remove this line if you want to keep logs in the repo)
+outputs/*.log
