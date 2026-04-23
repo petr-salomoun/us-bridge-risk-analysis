@@ -43,6 +43,8 @@ COND_RISK = (9 − MIN_STRUCT_COND) / 9
 Matches the CAT23 (lowest rating) field published by FHWA.  
 The official "Poor" threshold is MIN_STRUCT_COND ≤ 4.
 
+> **Note:** In the actual SDI computation (see `src/03_features.py`), COND_RISK uses a **collapse-criticality-weighted** composite rather than a simple minimum: substructure (0.45) > superstructure (0.35) > deck (0.20), with a non-linear penalty for ratings ≤ 4. This weighted approach better reflects structural collapse mechanics (foundation failure is more catastrophic than deck degradation). The simple-minimum formula above describes the FHWA classification logic; the SDI uses the weighted version.
+
 ### Structural Evaluation Appraisal (STRUCT_EVAL_RISK)
 NBI Item 67. Scale 0–9, where:
 - 9 = Superior to present desirable criteria
@@ -59,16 +61,18 @@ NBI Item 113 maps to risk probability:
 
 | Code | Meaning | Risk |
 |---|---|---|
-| 0 | Unknown foundation | 0.50 |
-| 1 | Tidal waters | 0.10 |
-| 2 | Well founded, not critical | 0.10 |
-| 3 | Unknown foundation, may be critical | 0.60 |
-| 4 | Unknown foundation, scour critical | 0.90 |
-| 5 | Stable, counter-measures needed | 0.80 |
-| 6 | Critical, counter-measures applied | 0.70 |
+| 0 | Unknown foundation (not inspected underwater) | 0.40 |
+| 1 | Tidal foundation — stable by definition | 0.05 |
+| 2 | Well-founded, not scour critical | 0.05 |
+| 3 | Unknown foundation — may be scour critical | 0.55 |
+| 4 | Unknown foundation — is scour critical | 0.90 |
+| 5 | Stable stream, scour critical (countermeasures applied) | 0.75 |
+| 6 | Scour critical — countermeasures applied | 0.65 |
 | 7 | Bridge closed due to scour | 1.00 |
-| 8 | Critical, monitoring program | 0.80 |
-| 9 | Scour critical | 1.00 |
+| 8 | Monitoring program (not yet closed) | 0.80 |
+| 9 | Scour critical — unknown if countermeasures applied | 1.00 |
+
+> **Note:** These risk values are further amplified by a scour-substructure interaction term: `SCOUR_RISK = base_scour × (1 + 0.5 × SUBSTR_RISK)`, reflecting that scour attacking a degraded foundation is multiplicative in collapse probability.
 
 ### Traffic Stress
 ```
@@ -100,18 +104,19 @@ Structural Deficiency Index (SDI) is a weighted linear combination:
 
 | Feature | Weight | Rationale |
 |---|---|---|
-| COND_RISK | 0.35 | Direct structural condition |
-| STRUCT_EVAL_RISK | 0.15 | Engineering appraisal |
-| AGE_NORM | 0.12 | Material fatigue and obsolescence |
-| SCOUR_RISK | 0.10 | Foundation vulnerability |
-| LOAD_POSTED | 0.08 | Operational restriction indicator |
-| ADT_AGE_STRESS | 0.07 | Traffic load × age synergy |
-| CHANNEL_RISK | 0.05 | Waterway erosion |
-| WATERWAY_RISK | 0.04 | Hydraulic adequacy |
-| INSPECT_RISK | 0.02 | Overdue inspection flag |
-| TRUCK_NORM | 0.01 | Heavy vehicle proportion |
-| ADT_LOG_NORM | 0.01 | Absolute traffic volume |
-| IS_CLOSED | 0.00 | Informational (already reflected in posting) |
+| COND_RISK | 0.30 | Weighted structural composite (sub 0.45 + super 0.35 + deck 0.20) |
+| STRUCT_EVAL_RISK | 0.18 | Engineer's structural adequacy appraisal |
+| SCOUR_RISK | 0.14 | #1 collapse cause; already amplified by substructure interaction |
+| FRACTURE_CRITICAL | 0.07 | Single-point-of-failure structural form |
+| AGE_NORM | 0.07 | Proxy for unobserved time-dependent deterioration |
+| DESIGN_LOAD_RISK | 0.06 | Load reserve capacity deficit |
+| LOAD_POSTED | 0.06 | Formal load restriction = structural admission |
+| ADT_AGE_STRESS | 0.04 | Traffic demand x age x design-load interaction |
+| TRUCK_LOAD_STRESS | 0.03 | Heavy commercial load on under-designed bridge |
+| CHANNEL_RISK | 0.02 | Channel instability (scour precursor) |
+| WATERWAY_RISK | 0.02 | Hydraulic adequacy |
+| INSPECT_RISK | 0.01 | Overdue inspection flag |
+| IS_CLOSED | 0.00 | Already closed — risk realized, not predictive |
 
 Weights sum to 1.0. Chosen heuristically, consistent with FHWA bridge management guidance (PONTIS/AASHTOWare).
 
@@ -130,9 +135,12 @@ Deliberately excludes condition ratings to avoid circular prediction:
 - ADT_LOG_NORM
 - ADT_AGE_STRESS
 - TRUCK_NORM
+- TRUCK_LOAD_STRESS
 - SCOUR_RISK
 - LOAD_POSTED
 - WATERWAY_RISK
+- FRACTURE_CRITICAL
+- DESIGN_LOAD_RISK
 - INSPECT_RISK
 - IS_CLOSED
 
@@ -173,7 +181,7 @@ Blending the rule-based SDI (which leverages actual condition ratings) with the 
 | Medium | 0.25 – 0.50 | 87,684 | Monitor; likely deteriorating |
 | Low | < 0.25 | 512,640 | Generally adequate condition |
 
-Thresholds are set at standard quartile breakpoints of the risk distribution, rounded. For full results and distribution charts, see `README.md`.
+Thresholds are set at evenly-spaced breakpoints on the [0, 1] risk score scale (0.25, 0.50, 0.75), not data quantiles. The resulting distribution is heavily right-skewed: 82% of bridges fall in the Low tier, reflecting that most bridges are in adequate condition.
 
 ---
 
