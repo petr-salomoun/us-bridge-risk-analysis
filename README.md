@@ -149,6 +149,13 @@ These are the most dangerous "blind spots" — bridges carrying heavy traffic th
 
 These bridges are rated Fair or Good by standard NBI condition codes, meaning they would not appear on typical "structurally deficient" watch lists. Yet their structural profiles -- aging designs, scour exposure, load patterns -- place them in the top 3.4% of risk nationally. The Granite Ave bridge over the Neponset River in Massachusetts (rank 5,064) is particularly notable: rated Fair by FHWA but scoring 0.730 (nearly Critical) on our model, carrying nearly 40,000 vehicles/day on a 65-year-old structure.
 
+### Hidden Risk Heatmap
+
+![Hidden Risk Heatmap](outputs/charts/12_hidden_risk_heatmap.png)
+
+The left panel shows the raw count of hidden-risk bridges per state; the right panel normalises by state inventory size to reveal where inspection standards appear most relaxed. **Kansas and Nebraska** lead both in absolute count and on a per-inventory basis — Great Plains states where structural vulnerability patterns (age, scour, design-load obsolescence) are widespread yet condition ratings remain Fair or Good. **Puerto Rico** ranks second by percentage (90 bridges, 3.8% of its inventory), and **Pennsylvania** (264 bridges) and **Kentucky** (186 bridges) round out the top five in absolute terms. These are the states where official FHWA condition codes most diverge from our composite model's risk assessment.
+
+
 ---
 
 ## 1-Year Collapse Probability

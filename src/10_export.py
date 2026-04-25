@@ -74,9 +74,19 @@ def main():
 
     export_dir = Path(args.export_dir)
     if export_dir.exists():
-        log.info("Removing existing export directory: %s", export_dir)
-        shutil.rmtree(export_dir)
-    export_dir.mkdir(parents=True)
+        # Remove all contents except .git so we don't destroy an existing repo
+        git_dir = export_dir / ".git"
+        for child in list(export_dir.iterdir()):
+            if child.name == ".git":
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+        log.info("Cleared export directory (preserved .git): %s", export_dir)
+    else:
+        export_dir.mkdir(parents=True)
+        log.info("Created export directory: %s", export_dir)
     log.info("Export directory: %s", export_dir)
 
     # ── Source code ────────────────────────────────────────────────────────────

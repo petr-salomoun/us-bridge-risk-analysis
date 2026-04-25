@@ -144,13 +144,127 @@ def build_choropleth(state_df: pd.DataFrame, geo_path: Path):
     return path
 
 
+def build_hidden_risk_choropleth(bridges_df: pd.DataFrame, geo_path: Path):
+    """Build CONUS state choropleth of 'hidden risk' bridges:
+    High or Critical risk score but FHWA condition Fair or Good.
+    Two panels: (a) count per state, (b) % of state bridge inventory.
+    """
+    with open(geo_path) as f:
+        geo = json.load(f)
+
+    # Filter to hidden-risk bridges
+    hidden = bridges_df[
+        bridges_df["severity"].isin(["High", "Critical"]) &
+        bridges_df["bridge_condition_category"].isin(["F", "G"])
+    ].copy()
+
+    # Normalise state code to zero-padded FIPS string
+    hidden["fips"] = hidden["state_code"].astype(str).str.strip().str.zfill(2)
+    bridges_df = bridges_df.copy()
+    bridges_df["fips"] = bridges_df["state_code"].astype(str).str.strip().str.zfill(2)
+
+    hidden_count = hidden.groupby("fips").size().to_dict()
+    total_count  = bridges_df.groupby("fips").size().to_dict()
+    hidden_pct   = {f: 100 * hidden_count.get(f, 0) / total_count[f]
+                    for f in total_count if total_count[f] > 0}
+
+    cmap = plt.get_cmap("YlOrRd")
+
+    panels = [
+        (hidden_count, "Number of Hidden-Risk Bridges per State",   None),
+        (hidden_pct,   "Hidden-Risk Bridges as % of State Inventory", (0, 6)),
+    ]
+
+    fig, axes = plt.subplots(1, 2, figsize=(22, 7))
+
+    for ax, (metric_by_fips, cbar_label, fixed_range) in zip(axes, panels):
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        values = [v for fips, v in metric_by_fips.items() if fips not in CONUS_SKIP]
+        if not values:
+            continue
+        vmin = fixed_range[0] if fixed_range else min(values)
+        vmax = fixed_range[1] if fixed_range else max(values)
+
+        # Build FIPS → state_name lookup from bridges_df
+        fips_to_name: dict[str, str] = {}
+        for _, row in bridges_df[["fips", "state_name"]].drop_duplicates().iterrows():
+            fips_to_name[row["fips"]] = row["state_name"]
+
+        for feature in geo["features"]:
+            props   = feature["properties"]
+            state_name = props.get("name", "")
+            fips_match = None
+            for fips, sn in fips_to_name.items():
+                if sn == state_name:
+                    fips_match = fips
+                    break
+            if fips_match is None or fips_match in CONUS_SKIP:
+                continue
+
+            val   = metric_by_fips.get(fips_match, 0)
+            color = cmap((val - vmin) / (vmax - vmin + 1e-9))
+
+            geom = feature["geometry"]
+            coords_list = []
+            if geom["type"] == "Polygon":
+                coords_list = [geom["coordinates"][0]]
+            elif geom["type"] == "MultiPolygon":
+                coords_list = [c[0] for c in geom["coordinates"]]
+
+            centroid_x, centroid_y = [], []
+            for coords in coords_list:
+                xs = [c[0] for c in coords]
+                ys = [c[1] for c in coords]
+                centroid_x.extend(xs)
+                centroid_y.extend(ys)
+                poly = plt.Polygon(list(zip(xs, ys)), closed=True,
+                                   facecolor=color, edgecolor="white", linewidth=0.6)
+                ax.add_patch(poly)
+
+            if centroid_x and centroid_y:
+                cx   = np.mean(centroid_x)
+                cy   = np.mean(centroid_y)
+                abbr = FIPS_TO_ABBR.get(fips_match, "")
+                label = f"{abbr}\n{val:.1f}%" if isinstance(val, float) else f"{abbr}\n{int(val)}"
+                ax.text(cx, cy, label, ha="center", va="center",
+                        fontsize=6.5, color="black", fontweight="bold",
+                        bbox=dict(facecolor="white", alpha=0.35, edgecolor="none", pad=0.5))
+
+        ax.set_xlim(-130, -65)
+        ax.set_ylim(23, 52)
+
+        sm = cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=vmin, vmax=vmax))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, orientation="horizontal", fraction=0.03, pad=0.02)
+        cbar.set_label(cbar_label, fontsize=9)
+
+    axes[0].set_title("Count of Hidden-Risk Bridges\n(High/Critical risk, FHWA Fair/Good condition)", fontsize=11, pad=10)
+    axes[1].set_title("Hidden-Risk Bridges as % of State Inventory\n(High/Critical risk, FHWA Fair/Good condition)", fontsize=11, pad=10)
+
+    fig.suptitle("CONUS 'Hidden Risk' Bridge Heatmap by State — 2024 NBI\n"
+                 "Bridges flagged High/Critical by our model but rated Fair or Good by FHWA",
+                 fontsize=13, y=1.02)
+    fig.tight_layout()
+    path = CHARTS_DIR / "12_hidden_risk_heatmap.png"
+    fig.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    log.info("Saved %s", path)
+    return path
+
+
 def main():
     CHARTS_DIR.mkdir(parents=True, exist_ok=True)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    state_df = pd.read_csv(OUTPUTS_DIR / "state_summary.csv")
+    state_df   = pd.read_csv(OUTPUTS_DIR / "state_summary.csv")
+    bridges_df = pd.read_csv(OUTPUTS_DIR / "bridges_ranked.csv",
+                              usecols=["state_code", "state_name", "severity",
+                                       "bridge_condition_category"])
     geo_path = download_geojson()
     build_choropleth(state_df, geo_path)
+    build_hidden_risk_choropleth(bridges_df, geo_path)
     log.info("Done.")
 
 
